@@ -1,29 +1,61 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-TELLY_ROOT="/usr/share/telly"
+# Get directory of script
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+# Development or installed paths
+if [[ -d "$SCRIPT_DIR/lib" ]]; then
+    # Running from project directory
+    TELLY_ROOT="$SCRIPT_DIR"
+else
+    # Running from installed location
+    TELLY_ROOT="/usr/share/telly"
+fi
+
 TELLY_USER_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/telly"
 
 # Load libraries
 source "$TELLY_ROOT/lib/utils.sh"
 source "$TELLY_ROOT/lib/launcher.sh"
+source "$TELLY_ROOT/lib/options.sh"
+source "$TELLY_ROOT/lib/state.sh"
 
 cmd="${1:-}"
 
 case "$cmd" in
-  run)
-    launcher="${2:-}"
-    [[ -z "$launcher" ]] && die 'missing launcher name'
-    launcher_dir="$(find_launcher "$launcher")"
-    echo "Running launcher: $launcher"
-    ;;
-  list)
-    echo "Not implemented"
-    ;;
-  init)
-    echo "Not implemented"
-    ;;
-  *)
-    echo "Usage: telly run <launcher>"
-    ;;
+    run)
+        launcher="${2:-}"
+        [[ -z "$launcher" ]] && die 'missing launcher name'
+
+        # Get launcher directory and contents
+        launcher_dir="$(find_launcher "$launcher")"
+        options=($(get_options "$launcher_dir"))
+        echo "Running launcher: $launcher"
+
+        # Get state file and state
+        state_file="$(state_file_for "$launcher")"
+        now="$(date +%s)"
+        load_state "$state_file"
+
+        # Cycle
+        if (( LAST_TS > 0 )); then
+            INDEX="$(next_index "$INDEX" "${#options[@]}")"
+        fi
+
+        # Save the new state
+        save_state "$state_file" "$INDEX" "$now"
+
+        echo "Selected option:"
+        echo "  ${options[$INDEX]}"
+        ;;
+    list)
+        echo "Not implemented"
+        ;;
+    init)
+        echo "Not implemented"
+        ;;
+    *)
+        echo "Usage: telly run <launcher>"
+        ;;
 esac

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 find_launcher() {
+    # Checks if a launcher directory exists
     local name="$1"
     local user_path="$TELLY_USER_CONFIG/launchers/$name"
     local system_path="$TELLY_ROOT/launchers/$name"
@@ -18,4 +19,22 @@ find_launcher() {
     fi
 
     die "launcher '$name' not found"
+}
+
+validate_launcher() {
+    # Checks if a launcher directory is valid
+    local dir="$1"
+
+    [[ -f "$dir/launcher.conf" ]] \
+        || die "launcher missing launcher.conf: $dir"
+
+    [[ -d "$dir/options" ]] \
+        || die "launcher missing options directory: $dir"
+
+    shopt -s nullglob
+    local opts=("$dir/options/"*.sh)
+    shopt -u nullglob
+
+    (( ${#opts[@]} > 0 )) \
+        || die "launcher has no option scripts: $dir"
 }
